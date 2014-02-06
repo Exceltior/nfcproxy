@@ -26,13 +26,17 @@ import org.eleetas.nfc.nfcproxy.utils.TextHelper;
 import org.eleetas.nfc.nfcproxy.utils.BasicTagTechnologyWrapper;
 
 import android.app.Activity;
+import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.content.IntentFilter.MalformedMimeTypeException;
 import android.content.SharedPreferences;
 import android.content.SharedPreferences.OnSharedPreferenceChangeListener;
 import android.nfc.NdefMessage;
 import android.nfc.NfcAdapter;
 import android.nfc.Tag;
+import android.nfc.tech.NfcF;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Parcelable;
@@ -62,6 +66,11 @@ public class NFCRelayActivity extends Activity {
 	private boolean mDebugLogging = false;
 	private int mPort = NFCVars.DEFAULT_PORT;
 	private boolean mEncrypt = true;
+	
+	private NfcAdapter mAdapter;
+    private IntentFilter[] intentFiltersArray;
+    private String[][] techListsArray;
+    private PendingIntent pendingIntent;
 	
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
@@ -106,7 +115,22 @@ public class NFCRelayActivity extends Activity {
         } 
 
         mStatusView.setText(getString(R.string.waiting) + "\n");		
-		
+        
+        mAdapter = NfcAdapter.getDefaultAdapter(this);
+        pendingIntent = PendingIntent.getActivity(
+        	    this, 0, new Intent(this, getClass()).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), 0);
+        
+        IntentFilter ndef = new IntentFilter(NfcAdapter.ACTION_TAG_DISCOVERED);
+        try {
+            ndef.addDataType("*/*");    /* Handles all MIME based dispatches.
+                                           You should specify only the ones that you need. */
+        }
+        catch (MalformedMimeTypeException e) {
+            throw new RuntimeException("fail", e);
+        }
+        IntentFilter[] intentFiltersArray = new IntentFilter[] {ndef, };
+        String[][] techListsArray = new String[][] { new String[] { NfcF.class.getName() } };
+       
         String ipAddr = "";		
         try {
 			//assume IP is on wlan0 interface
@@ -148,6 +172,9 @@ public class NFCRelayActivity extends Activity {
         super.onResume();
         
 		Intent intent = getIntent();
+		if (mAdapter != null) {
+			mAdapter.enableForegroundDispatch(this, pendingIntent, intentFiltersArray, techListsArray);
+		}
 
 		SharedPreferences prefs = getSharedPreferences(NFCVars.PREFERENCES, Context.MODE_PRIVATE);
         if (!prefs.getBoolean("relayPref", false)) {
@@ -200,6 +227,9 @@ public class NFCRelayActivity extends Activity {
 		if (mWakeLock != null) {
 			mWakeLock.release();
 		}		
+		if (mAdapter != null) {
+			mAdapter.disableForegroundDispatch(this);
+		}
 	}
 
 	private String getTagInfo(Intent intent)
