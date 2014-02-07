@@ -74,6 +74,7 @@
     <string name="save_pcd">Save PCD requests</string>
     <string name="save_tag">Save tag responses</string>    
     <string name="save_to_db">Save to database</string>
+    <string name="save_all">Save both pcd/tag</string>
     <string name="saved">Saved</string>
     <string name="settings">Settings</string>
     <string name="socket_error">Socket error</string>
